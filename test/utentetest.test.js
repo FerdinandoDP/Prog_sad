@@ -1,4 +1,5 @@
 require("dotenv").config();
+const Mockgoose = require("mockgoose").Mockgoose;
 const express = require("express");
 const request = require('supertest');
 const mongoose = require("mongoose");
@@ -6,44 +7,38 @@ const routes = require("../routes/Route.js");
 const bodyParser = require("body-parser");
 const utentemodel = require("../models/UtenteModel.js");
 const { afterEach, describe } = require("node:test");
+const { MongoMemoryServer } = require("mongodb-memory-server");
 const app = express();
 const port = 4001;
 
-mongoose.set('strictQuery', false);
-mongoose.connect(process.env.DATABASE_URL);
-const db = mongoose.createConnection(process.env.DATABASE_URL);
-db.on('error', (error)=>console.error(error));
-db.once('open', ()=>console.log("Database Connected"));
 
-//listen to port 4000
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
-app.use(function (req, res, next) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-  
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-  
-    res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
-  
-    if (req.method === "OPTIONS") {
-      return res.status(200).end();
-  }
-  
-    next();
-  });
 
-var server = app.listen(port)
-routes(app);
-
-var a = function(){
-    mongoose.disconnect();
-    mongoose.connection.close();
-    server.close(); 
-}
 
 describe("test rotte utente", () =>{
    var id_elem = 'aaa';
-    
+   beforeAll(async () => {
+    const mongoserver = await MongoMemoryServer.create();
+    mongoose.set('strictQuery', false);
+    await mongoose.connect(mongoserver.getUri())
+    app.use(bodyParser.urlencoded({ extended: true }));
+    app.use(bodyParser.json());
+    app.use(function (req, res, next) {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+
+        res.setHeader('Access-Control-Allow-Headers', 'X-Requested-With,content-type');
+
+        if (req.method === "OPTIONS") {
+        return res.status(200).end();
+    }
+
+    next();
+    });
+
+    var server = app.listen(port)
+    routes(app);
+})
     test("add element wrong", async() =>{
         const res = await request(app).post('/utenti').send();
         console.log(res.body)
@@ -216,13 +211,18 @@ describe('test rotte Prenotazione', () => {
     })
 });
 
+
 describe('test rotte postazioni', () =>{
     var id_post = "aaa";
-    afterAll(done =>{
-        mongoose.disconnect();
-        mongoose.connection.close();
-        server.close(); 
-        done();
+    
+    afterAll(async () =>{
+        //mockgoose.reset();
+        
+        await mongoose.disconnect();
+        await mongoose.connection.close();
+        //server.close(); 
+        
+        
     });
     test("add postazione wrong", async() =>{
         const res = await request(app).post('/postazioni').send();
@@ -233,6 +233,7 @@ describe('test rotte postazioni', () =>{
 
     test('get postazioni', async() =>{
         const res = await request(app).get('/postazioni')
+        console.log(res.body)
         console.log(res.body)
         var res_expected = {}
         expect(typeof res.body).toBe(typeof res_expected)
@@ -275,8 +276,8 @@ describe('test rotte postazioni', () =>{
         })
         expect(res.body).toBe(null);
     })
+  
 });
-
 
 
 
